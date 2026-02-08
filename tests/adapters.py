@@ -144,7 +144,9 @@ def run_scaled_dot_product_attention(
     Returns:
         Float[Tensor, " ... queries d_v"]: Output of SDPA
     """
-    raise NotImplementedError
+    from cs336_basics.Attention import scaled_dot_product_attention
+    res = scaled_dot_product_attention(Q, K, V, mask)
+    return res
 
 
 def run_multihead_self_attention(
@@ -331,7 +333,28 @@ def run_transformer_block(
         Float[Tensor, "batch sequence_length d_model"] Tensor with the output of
         running the Transformer block on the input features while using RoPE.
     """
-    raise NotImplementedError
+    
+    from cs336_basics.Transformer import Transformer_block
+    transformer_block = Transformer_block(d_model, num_heads, d_ff, max_seq_len, theta)
+    
+    # Set attention weights
+    transformer_block.casual_multi_head_attention.q_proj.weight.data.copy_(weights["attn.q_proj.weight"])
+    transformer_block.casual_multi_head_attention.k_proj.weight.data.copy_(weights["attn.k_proj.weight"])
+    transformer_block.casual_multi_head_attention.v_proj.weight.data.copy_(weights["attn.v_proj.weight"])
+    transformer_block.casual_multi_head_attention.out_proj.weight.data.copy_(weights["attn.output_proj.weight"])
+    
+    # Set feedforward weights
+    transformer_block.positionwise_feed_forward.w1.weight.data.copy_(weights["ffn.w1.weight"])
+    transformer_block.positionwise_feed_forward.w2.weight.data.copy_(weights["ffn.w2.weight"])
+    transformer_block.positionwise_feed_forward.w3.weight.data.copy_(weights["ffn.w3.weight"])
+    
+    # Set normalization weights
+    transformer_block.norm_1.weight.data.copy_(weights["ln1.weight"])
+    transformer_block.norm_2.weight.data.copy_(weights["ln2.weight"])
+    
+    output = transformer_block(in_features)
+    return output
+    
 
 
 def run_transformer_lm(
@@ -490,7 +513,9 @@ def run_silu(in_features: Float[Tensor, " ..."]) -> Float[Tensor, " ..."]:
         Float[Tensor,"..."]: of with the same shape as `in_features` with the output of applying
         SiLU to each element.
     """
-    raise NotImplementedError
+    from cs336_basics.Positionwise_fd import silu
+    res = silu(in_features)
+    return res
 
 def run_get_batch(
     dataset: npt.NDArray, 
@@ -516,6 +541,8 @@ def run_get_batch(
     """
     from cs336_basics.loader_datater import run_get_batch
     inputs, targets = run_get_batch(dataset, batch_size, context_length, device)
+    # print(f"inputs: {inputs}")
+    # print(f"targets: {targets}")
     return inputs, targets
 
 
@@ -534,7 +561,9 @@ def run_softmax(in_features: Float[Tensor, " ..."], dim: int) -> Float[Tensor, "
         Float[Tensor, "..."]: Tensor of with the same shape as `in_features` with the output of
         softmax normalizing the specified `dim`.
     """
-    raise NotImplementedError
+    from cs336_basics.loss import softmax
+    res = softmax(in_features, dim)
+    return res
 
 
 def run_cross_entropy(
@@ -552,7 +581,10 @@ def run_cross_entropy(
     Returns:
         Float[Tensor, ""]: The average cross-entropy loss across examples.
     """
-    raise NotImplementedError
+    from cs336_basics.loss import cross_entropy_loss
+    res = cross_entropy_loss(inputs, targets)
+    return res
+
 
 
 def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm: float) -> None:
@@ -564,14 +596,17 @@ def run_gradient_clipping(parameters: Iterable[torch.nn.Parameter], max_l2_norm:
 
     The gradients of the parameters (parameter.grad) should be modified in-place.
     """
-    raise NotImplementedError
+    from cs336_basics.gradient_clipping import gradient_clipping
+    gradient_clipping(parameters, max_l2_norm)
+  
 
 
 def get_adamw_cls() -> Any:
     """
     Returns a torch.optim.Optimizer that implements AdamW.
     """
-    raise NotImplementedError
+    from cs336_basics.AdamW import AdamW
+    return AdamW
 
 
 def run_get_lr_cosine_schedule(
@@ -599,7 +634,10 @@ def run_get_lr_cosine_schedule(
     Returns:
         Learning rate at the given iteration under the specified schedule.
     """
-    raise NotImplementedError
+    from cs336_basics.lr_cosine_schedule import get_cosine_lr_schedule
+    
+    res = get_cosine_lr_schedule(it, max_learning_rate, min_learning_rate, warmup_iters, cosine_cycle_iters)
+    return res
 
 
 def run_save_checkpoint(
@@ -618,7 +656,10 @@ def run_save_checkpoint(
             we've completed.
         out (str | os.PathLike | BinaryIO | IO[bytes]): Path or file-like object to serialize the model, optimizer, and iteration to.
     """
-    raise NotImplementedError
+    
+    from cs336_basics.loader_datater import run_save_checkpoint
+    run_save_checkpoint(model, optimizer, iteration, out)
+   
 
 
 def run_load_checkpoint(
@@ -639,8 +680,9 @@ def run_load_checkpoint(
     Returns:
         int: the previously-serialized number of iterations.
     """
-    raise NotImplementedError
-
+    
+    from cs336_basics.loader_datater import run_load_checkpoint
+    return run_load_checkpoint(src, model, optimizer)
 
 def get_tokenizer(
     vocab: dict[int, bytes],
@@ -662,7 +704,10 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    raise NotImplementedError
+    from cs336_basics.BPETokenizer import get_tokenizer
+    res = get_tokenizer(vocab, merges, special_tokens)
+    return res  
+
 
 
 def run_train_bpe(

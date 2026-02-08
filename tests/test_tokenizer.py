@@ -2,12 +2,17 @@ from __future__ import annotations
 
 import json
 import os
-import resource
 import sys
 
 import psutil
 import pytest
 import tiktoken
+
+# resource 模块只在 Unix/Linux 系统上可用
+try:
+    import resource
+except ImportError:
+    resource = None  # Windows 系统上不可用
 
 from .adapters import get_tokenizer
 from .common import FIXTURES_PATH, gpt2_bytes_to_unicode
@@ -17,8 +22,12 @@ MERGES_PATH = FIXTURES_PATH / "gpt2_merges.txt"
 
 
 def memory_limit(max_mem):
+    """内存限制装饰器，只在支持 resource 模块的系统上工作（Unix/Linux）"""
     def decorator(f):
         def wrapper(*args, **kwargs):
+            if resource is None:
+                # Windows 系统不支持 resource 模块，直接执行函数
+                return f(*args, **kwargs)
             process = psutil.Process(os.getpid())
             prev_limits = resource.getrlimit(resource.RLIMIT_AS)
             resource.setrlimit(resource.RLIMIT_AS, (process.memory_info().rss + max_mem, -1))
@@ -64,13 +73,27 @@ def get_tokenizer_from_vocab_merges_path(
             if byte_encoded_special_token not in set(vocab.values()):
                 vocab[len(vocab)] = byte_encoded_special_token
 
-    merges = [
-        (
-            bytes([gpt2_byte_decoder[token] for token in merge_token_1]),
-            bytes([gpt2_byte_decoder[token] for token in merge_token_2]),
-        )
-        for merge_token_1, merge_token_2 in gpt2_bpe_merges
-    ]
+    merges = []
+    for merge_token_1, merge_token_2 in gpt2_bpe_merges:
+        # 处理 merge_token_1：如果字符在映射中，使用映射值；否则使用字符的字节表示
+        merge_bytes_1 = []
+        for token in merge_token_1:
+            if token in gpt2_byte_decoder:
+                merge_bytes_1.append(gpt2_byte_decoder[token])
+            else:
+                # 如果字符不在映射中，直接使用其 UTF-8 编码的字节
+                merge_bytes_1.extend(token.encode("utf-8"))
+        
+        # 处理 merge_token_2
+        merge_bytes_2 = []
+        for token in merge_token_2:
+            if token in gpt2_byte_decoder:
+                merge_bytes_2.append(gpt2_byte_decoder[token])
+            else:
+                # 如果字符不在映射中，直接使用其 UTF-8 编码的字节
+                merge_bytes_2.extend(token.encode("utf-8"))
+        
+        merges.append((bytes(merge_bytes_1), bytes(merge_bytes_2)))
     return get_tokenizer(vocab, merges, special_tokens)
 
 

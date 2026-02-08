@@ -4,7 +4,7 @@ from tests.adapters import run_train_bpe
 
 # 验证集
 DATA_PATH = Path("data\TinyStories-valid.txt")  
-VOCAB_SIZE = 2000
+VOCAB_SIZE = 200
 SPECIAL_TOKENS = ["<|endoftext|>"]
 
 def main():

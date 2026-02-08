@@ -24,3 +24,9 @@ uv run pytest -k tests/test_model.py::test_multihead_self_attention  -v
 ```
 uv run pytest -k tests/test_model.py::test_transformer_lm -v 
 ```
+
+测试Data Loader 
+
+```
+uv run pytest -k tests/test_data.py::test_get_batch -v
+```

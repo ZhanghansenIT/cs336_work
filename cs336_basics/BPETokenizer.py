@@ -247,6 +247,123 @@ def example_of_bytes_wrong() :
     print(res)    
 
 
+class BPETokenizer:
+    """BPE Tokenizer implementation"""
+    
+    def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None):
+        """
+        Initialize BPE tokenizer with vocabulary, merges, and special tokens.
+        
+        Args:
+            vocab: Dictionary mapping token IDs to byte sequences
+            merges: List of BPE merge operations (token1, token2)
+            special_tokens: List of special token strings
+        """
+        self.vocab = vocab
+        self.merges = merges
+        self.special_tokens = special_tokens or []
+        
+        # Create reverse mapping: bytes -> token_id
+        self.bytes_to_token_id = {v: k for k, v in vocab.items()}
+        
+        # Create merge lookup for faster encoding
+        self.merge_to_id = {}
+        for i, (token1, token2) in enumerate(merges):
+            merged = token1 + token2
+            if merged in self.bytes_to_token_id:
+                self.merge_to_id[(token1, token2)] = self.bytes_to_token_id[merged]
+    
+    def encode(self, text: str) -> list[int]:
+        """Encode text into token IDs"""
+        # Split by special tokens first
+        parts = split_by_special_token(text, self.special_tokens)
+        token_ids = []
+        
+        for part in parts:
+            if part in self.special_tokens:
+                # Special token: find its ID in vocab
+                special_bytes = part.encode("utf-8")
+                if special_bytes in self.bytes_to_token_id:
+                    token_ids.append(self.bytes_to_token_id[special_bytes])
+            else:
+                # Regular text: pre-tokenize and apply BPE
+                pretokens = pre_tokenizer(part, self.special_tokens)
+                # Apply BPE merges
+                for pretoken in pretokens:
+                    token_ids.extend(self._apply_bpe(pretoken))
+        
+        return token_ids
+    
+    def _apply_bpe(self, token_bytes: bytes) -> list[int]:
+        """Apply BPE merges to a token"""
+        # Start with individual bytes
+        tokens = list(token_bytes)
+        
+        # Apply each merge in order
+        for token1_bytes, token2_bytes in self.merges:
+            i = 0
+            new_tokens = []
+            while i < len(tokens):
+                if i < len(tokens) - 1:
+                    # Check if we can merge tokens[i] and tokens[i+1]
+                    byte1 = bytes([tokens[i]])
+                    byte2 = bytes([tokens[i+1]])
+                    
+                    if byte1 == token1_bytes and byte2 == token2_bytes:
+                        # Merge these two tokens
+                        merged = token1_bytes + token2_bytes
+                        if merged in self.bytes_to_token_id:
+                            new_tokens.append(self.bytes_to_token_id[merged])
+                            i += 2
+                            continue
+                
+                new_tokens.append(tokens[i])
+                i += 1
+            
+            tokens = new_tokens
+        
+        return tokens
+    
+    def decode(self, token_ids: list[int]) -> str:
+        """Decode token IDs back to text"""
+        byte_sequences = []
+        for token_id in token_ids:
+            if token_id in self.vocab:
+                byte_sequences.append(self.vocab[token_id])
+            else:
+                # Unknown token ID, skip or handle error
+                continue
+        
+        # Concatenate all byte sequences and decode
+        result_bytes = b''.join(byte_sequences)
+        return result_bytes.decode("utf-8", errors="replace")
+    
+    def encode_iterable(self, iterable):
+        """Encode text from an iterable (e.g., file)"""
+        for line in iterable:
+            for token_id in self.encode(line):
+                yield token_id
+
+
+def get_tokenizer(
+    vocab: dict[int, bytes],
+    merges: list[tuple[bytes, bytes]],
+    special_tokens: list[str] | None = None,
+) -> BPETokenizer:
+    """
+    Create a BPE tokenizer from vocabulary, merges, and special tokens.
+    
+    Args:
+        vocab: Dictionary mapping token IDs to byte sequences
+        merges: List of BPE merge operations
+        special_tokens: List of special token strings
+        
+    Returns:
+        BPETokenizer instance
+    """
+    return BPETokenizer(vocab, merges, special_tokens)
+
+
 if __name__ == "__main__":
     # example_of_bytes_wrong()
     # res = split_by_special_token("Hello world! <|endoftext|> Great!",["<|endoftext|>"])

@@ -4,6 +4,8 @@ import numpy as np
 import torch
 from typing import Tuple
 import numpy.typing as npt
+import os
+from typing import BinaryIO, IO 
 def run_get_batch(
     x: npt.NDArray,
     batch_size: int,
@@ -65,3 +67,29 @@ def run_get_batch(
     targets = torch.tensor(targets_np, dtype=torch.long, device=device)
     
     return inputs, targets
+
+
+def run_save_checkpoint(
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+    iteration: int,
+    out: str | os.PathLike | BinaryIO | IO[bytes],
+):
+    checkpoint = {
+        "model_state_dict": model.state_dict(),
+        "optimizer_state_dict": optimizer.state_dict(),
+        "iteration": iteration
+    }
+    torch.save(checkpoint, out)
+    print(f"Checkpoint saved to {out}")
+    return None
+
+def run_load_checkpoint(
+    src: str | os.PathLike | BinaryIO | IO[bytes],
+    model: torch.nn.Module,
+    optimizer: torch.optim.Optimizer,
+) -> int:
+    checkpoint = torch.load(src, map_location=next(model.parameters()).device)
+    model.load_state_dict(checkpoint["model_state_dict"])
+    optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+    return checkpoint["iteration"]
