@@ -79,17 +79,20 @@ def train_bpe(input_path: str | os.PathLike,
     # 不能为负数 
     num_merges = max(vocab_size -len(special_tokens) -256,0) 
 
-    vocab = {} 
-    vocab = {x:bytes([x]) for x in range(0,256)}
+    # 1. 初始化词汇表 ：初始化256个字节的基础词汇表 ，并加上特殊字符 
+    vocab = {} # 词汇表 
+    merges = [] # 合并规则 
+    vocab = {x:bytes([x]) for x in range(0,256)} # 初始化256个字节的基础词汇表 
 
     # 加上特殊字符 
     for i , token in enumerate(special_tokens) : 
         vocab[256+i] = token.encode("utf-8")
-    merges = []
+    
 
     # Chunk the text file
     num_processes = 4
     chunk_list = []
+    # 读取文本
     with open(input_path, "rb") as f:
         boundaries = find_chunk_boundaries(f, num_processes, "<|endoftext|>".encode("utf-8"))
 
@@ -117,11 +120,13 @@ def train_bpe(input_path: str | os.PathLike,
     pre_tokens_list = [q.get() for _ in process]
     for p in process:
         p.join()
+    
+    # 得到预分词列表
     pretokens = [token for tokens in pre_tokens_list for token in tokens]
     # print(f"pretokens number : {len(pretokens)}")
     # print(f"pretokens : {pretokens}")
 
-
+    # 2. 统计字节对频率 ： 统计所有预Token中相邻字节对的出现频率。
     counts = defaultdict(int)
     index_dict = defaultdict(set)
 
