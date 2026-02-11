@@ -160,7 +160,8 @@ def train_bpe(input_path: str | os.PathLike,
         new_index = 256 + len(special_tokens) + i
 
         vocab[new_index] = vocab[index1] + vocab[index2]
-      
+        
+        # 记录合并规则 
         merges.append((vocab[index1], vocab[index2]))
     
         # print(max_pair)
@@ -174,17 +175,27 @@ def train_bpe(input_path: str | os.PathLike,
 
 def merge(counts: dict[tuple[int, int], int], index_dict: dict[tuple[int, int],set[int]], pretokens: list[list[int]], max_pair: (int, int), new_index: int):
 
-    """Merge the pairs with highest frequency and update counts, index_dict"""
+    """
+        counts: 相邻标记对的出现频率字典 {(idx1, idx2): freq}
+        index_dict: 标记对出现在哪些token序列中的映射 {(idx1, idx2): {seq_index1, seq_index2, ...}}
+        pretokens: 所有token序列的列表 [[token1, token2, ...], ...]
+        max_pair: 要合并的标记对 (idx1, idx2)
+        new_index: 合并后新标记的索引
 
-    # 哪些token序列中出现这些频繁出现的 pairs 
+    """
+    # 获取包含这个频繁出现的字符对的token序列索引
     index_set = index_dict[max_pair]
+
     # print(f"index_set: {index_set}")
-    # 遍历进行替换
+
+    # 遍历处理每个序列（存在出现频繁出现的字符对的token序列）
     for i in index_set: 
         pretoken = pretokens[i]
         # print(f"pretoken: {pretoken}")
-        new_pretoken = []
 
+        # 合并后的新token序列
+        new_pretoken = []
+        # 记录新标记插入的位置
         pos_list = [] 
         pos = 0 
 
@@ -209,9 +220,9 @@ def merge(counts: dict[tuple[int, int], int], index_dict: dict[tuple[int, int],s
 
             # 这里要处理原来没替换之前的字符与前一个字符和后一个字符的count 计算
             if pos > 0 : 
-                # 如果不是第一个字符，才有前一个字符
+                
                 if new_pretoken[pos-1] == new_index : 
-                    
+                     # 前一个也是新标记X，说明是连续的 (X,X) 情况
                     counts[(max_pair[1],max_pair[0])] -= 1
                 else:
                     # 与前一个字符的计数 
@@ -233,7 +244,21 @@ def merge(counts: dict[tuple[int, int], int], index_dict: dict[tuple[int, int],s
 
         pretokens[i] = new_pretoken
 
-
+        """
+            # 初始数据
+        pretokens = [
+            [1, 2, 3, 1, 2, 4],  # 序列0: a b c a b d
+            [1, 2, 5]           # 序列1: a b e
+        ]
+        counts = {
+            (1, 2): 3,  # a,b 出现3次
+            (2, 3): 1, (3, 1): 1, (2, 4): 1, (2, 5): 1
+        }
+        index_dict = {
+            (1, 2): {0, 1},  # (a,b) 出现在序列0和1
+            (2, 3): {0}, (3, 1): {0}, (2, 4): {0}, (2, 5): {1}
+        }
+        """
 
 
 

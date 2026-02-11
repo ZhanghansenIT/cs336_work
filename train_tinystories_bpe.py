@@ -3,8 +3,8 @@ from tests.adapters import run_train_bpe
 
 
 # 验证集
-DATA_PATH = Path("data\TinyStories-valid.txt")  
-VOCAB_SIZE = 200
+DATA_PATH = Path("data/TinyStories-valid.txt")  
+VOCAB_SIZE = 1000
 SPECIAL_TOKENS = ["<|endoftext|>"]
 
 def main():
